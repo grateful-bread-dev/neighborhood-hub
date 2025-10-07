@@ -1,0 +1,83 @@
+-- create DB
+CREATE DATABASE IF NOT EXISTS neighborhoodhub
+  CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+USE neighborhoodhub;
+
+-- users
+CREATE TABLE IF NOT EXISTS users (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  email VARCHAR(255) NOT NULL UNIQUE,
+  password_hash CHAR(60) NOT NULL,
+  display_name VARCHAR(80) NOT NULL,
+  city VARCHAR(100) NOT NULL,
+  state VARCHAR(100) NOT NULL,
+  country VARCHAR(100) NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
+-- posts
+CREATE TABLE IF NOT EXISTS posts (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  user_id BIGINT UNSIGNED NOT NULL,
+  type ENUM('request','offer','lost_found','alert', 'event', 'other') NOT NULL,
+  title VARCHAR(140) NOT NULL,
+  body TEXT NOT NULL,
+  category VARCHAR(50) NOT NULL,
+  city VARCHAR(100) NOT NULL,
+  state VARCHAR(100) NOT NULL,
+  country VARCHAR(100) NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_posts_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CREATE INDEX idx_posts_type ON posts(type);
+CREATE INDEX idx_posts_category ON posts(category);
+CREATE INDEX idx_posts_location ON posts(city, state, country);
+CREATE FULLTEXT INDEX ft_posts_title_body ON posts(title, body);
+
+-- bookmarks
+CREATE TABLE IF NOT EXISTS bookmarks (
+  user_id BIGINT UNSIGNED NOT NULL,
+  post_id BIGINT UNSIGNED NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (user_id, post_id),
+  CONSTRAINT fk_bm_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  CONSTRAINT fk_bm_post FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+-- threads
+CREATE TABLE IF NOT EXISTS threads (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  post_id  BIGINT UNSIGNED NOT NULL,
+  buyer_id BIGINT UNSIGNED NULL,
+  seller_id BIGINT UNSIGNED NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_th_post FOREIGN KEY (post_id)  REFERENCES posts(id) ON DELETE CASCADE,
+  CONSTRAINT fk_th_buy FOREIGN KEY (buyer_id) REFERENCES users(id) ON DELETE SET NULL,
+  CONSTRAINT fk_th_sell FOREIGN KEY (seller_id)REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB;
+
+-- messages
+CREATE TABLE IF NOT EXISTS messages (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  thread_id BIGINT UNSIGNED NOT NULL,
+  sender_id BIGINT UNSIGNED NOT NULL,
+  body TEXT NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_msg_thread FOREIGN KEY (thread_id) REFERENCES threads(id) ON DELETE CASCADE,
+  CONSTRAINT fk_msg_sender FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+-- public comments on posts
+CREATE TABLE IF NOT EXISTS comments (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  post_id BIGINT UNSIGNED NOT NULL,
+  user_id BIGINT UNSIGNED NOT NULL,
+  body TEXT NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_comments_post  FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE,
+  CONSTRAINT fk_comments_user  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CREATE INDEX idx_comments_post_created ON comments(post_id, created_at);
+
